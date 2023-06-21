@@ -2,8 +2,17 @@
  * Copyright (c) Microsoft Corporation. All rights reserved.
  * Licensed under the MIT License. See License.txt in the project root for license information.
  * ------------------------------------------------------------------------------------------ */
+
+
 import {
-	createConnection,
+	CodeAction, CodeActionKind, Command, DeclarationLink, Definition, DefinitionLink,
+	DocumentHighlight, DocumentHighlightKind, Hover, InitializeError, Location, MarkupKind, MessageActionItem,
+	Position, Range, ResponseError, SignatureHelp, SymbolInformation, SymbolKind,
+	TextEdit, DiagnosticTag, InsertTextFormat, SelectionRangeRequest, SelectionRange, InsertReplaceEdit,
+	SemanticTokensClientCapabilities, SemanticTokensLegend, SemanticTokensBuilder, SemanticTokensRegistrationType,
+	SemanticTokensRegistrationOptions, ProtocolNotificationType, ChangeAnnotation, WorkspaceChange,
+	DocumentDiagnosticReportKind, WorkspaceDiagnosticReport, NotebookDocuments, CompletionList, DocumentLinkResolveRequest,
+	WorkspaceEdit,createConnection,
 	TextDocuments,
 	Diagnostic,
 	DiagnosticSeverity,
@@ -14,12 +23,18 @@ import {
 	CompletionItemKind,
 	TextDocumentPositionParams,
 	TextDocumentSyncKind,
-	InitializeResult
+	InitializeResult,
 } from 'vscode-languageserver/node';
+
+//import * as vsn from 'vscode-languageserver-node'
+import * as vsn from 'vscode-languageserver/node';
+import * as vscode from 'vscode';
+//import { register } from './register';
 
 import {
 	TextDocument
 } from 'vscode-languageserver-textdocument';
+
 
 // Create a connection for the server, using Node's IPC as a transport.
 // Also include all preview / proposed LSP features.
@@ -48,13 +63,19 @@ connection.onInitialize((params: InitializeParams) => {
 		capabilities.textDocument.publishDiagnostics &&
 		capabilities.textDocument.publishDiagnostics.relatedInformation
 	);
-
 	const result: InitializeResult = {
 		capabilities: {
 			textDocumentSync: TextDocumentSyncKind.Incremental,//incremental增加的
 			// Tell the client that this server supports code completion.
 			completionProvider: {
 				resolveProvider: true
+			},
+			hoverProvider: true,
+			codeActionProvider: true,
+			executeCommandProvider: {
+				commands: [
+					"Rename Symbol"
+				]
 			}
 		}
 	};
@@ -78,7 +99,10 @@ connection.onInitialized(() => {
 			connection.console.log('Workspace folder change event received.');
 		});
 	}
+	
 });
+
+
 
 // The example settings
 interface ExampleSettings {
@@ -103,7 +127,6 @@ connection.onDidChangeConfiguration(change => {
 			(change.settings.languageServerExample || defaultSettings)
 		);
 	}
-
 	// Revalidate all open text documents
 	documents.all().forEach(validateTextDocument);
 });
@@ -131,8 +154,93 @@ documents.onDidClose(e => { //documents is a documents manager, not the document
 // The content of a text document has changed. This event is emitted
 // when the text document first opened or when its content has changed.
 documents.onDidChangeContent(change => {
-	validateTextDocument(change.document);
+	//validateTextDocument(change.document);
+	checkElement(change.document);
+
 });
+
+function dublicateFunc(document:TextDocument, range:Range): CodeAction {
+	const text = document.getText(range);
+	const change: WorkspaceChange = new WorkspaceChange();
+	const a = change.getTextEditChange(document);
+	a.insert({line: range.end.line + 2, character: 0}, "\n\n" + text + "\n\n", ChangeAnnotation.create('generate by refactor', false));
+	const codeAction: CodeAction = {
+		title: 'stellar hunter code action',
+		kind: CodeActionKind.QuickFix,
+		data: document.uri
+	};
+	codeAction.edit = change.edit;
+	return codeAction;
+}  
+
+
+connection.onCodeAction((params) => {
+	const document = documents.get(params.textDocument.uri);
+	if(document === undefined) {return [];}
+	const codeActions:CodeAction[] = [];
+	const ctx = params.context;
+	const range = params.range;
+	const text = document.getText(range);
+	const dublicateCode:CodeAction = dublicateFunc(document, range);
+	codeActions.push(dublicateCode);
+	
+	const codeAction:CodeAction = {
+		title: "range of this code action",
+		kind: CodeActionKind.Refactor,
+		data: document.uri,
+	};
+	const change = new WorkspaceChange();
+	const a = change.getTextEditChange(document);
+	a.insert({line: range.end.line + 1, character: 0}, JSON.stringify(range) + " text: "+ text, ChangeAnnotation.create('generate by refactor', false));
+	codeAction.edit = change.edit;
+	codeActions.push(codeAction);
+	return codeActions;
+});
+
+
+
+
+connection.onHover((textPosition):Hover => {
+	return {
+		contents: {
+			kind: MarkupKind.PlainText,
+			value: 'hover message create by server' 
+		}
+	};
+});
+
+
+
+
+async function checkElement(textDocument: TextDocument) {
+	const maxNumberOfChecks = 1000;
+	const pattern = /function\s+\w+\s*\([^)]*\)\s*\{[^}]*\}/g;
+	let m: RegExpExecArray | null;
+	const text = textDocument.getText();
+	const diagnostics: Diagnostic[] = [];
+	let checks = 0;
+	while ((m = pattern.exec(text)) && checks < maxNumberOfChecks) {
+		checks ++;
+		const codeAction:CodeAction = {
+			title: "code action published by diagnositic",
+			kind: vsn.CodeActionKind.QuickFix,
+			data: textDocument.uri
+		};
+		const diagnostic: Diagnostic = {
+			severity: DiagnosticSeverity.Warning,
+			range: {
+				start: textDocument.positionAt(m.index),
+				end: textDocument.positionAt(m.index + m[0].length)
+			},
+			message: `element can be extract`,
+			source: 'stellaron hunter',
+			data: [codeAction]
+		};
+		diagnostics.push(diagnostic);
+	}
+	connection.sendDiagnostics({uri:textDocument.uri, diagnostics});
+
+}
 
 async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 	// In this simple example we get the settings for every validate run.
@@ -172,6 +280,7 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 						range: Object.assign({}, diagnostic.range)
 					},
 					message: 'Particularly for names'
+					
 				}
 			];
 		}
@@ -181,6 +290,7 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 	// Send the computed diagnostics to VSCode.
 	connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
 }
+
 
 connection.onDidChangeWatchedFiles(_change => {
 	// Monitored files have change in VSCode
