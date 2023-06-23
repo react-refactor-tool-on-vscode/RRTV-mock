@@ -25,7 +25,8 @@ import {
 	TextDocumentSyncKind,
 	InitializeResult,
 } from 'vscode-languageserver/node';
-
+import {initialize} from './initialize' ;
+import {extractDOM} from './extract';
 //import * as vsn from 'vscode-languageserver-node'
 import * as vsn from 'vscode-languageserver/node';
 import * as vscode from 'vscode';
@@ -47,52 +48,12 @@ let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
 let hasDiagnosticRelatedInformationCapability = false;
 
-connection.onInitialize((params: InitializeParams) => {
-	const capabilities = params.capabilities;
-
-	// Does the client support the `workspace/configuration` request?
-	// If not, we fall back using global settings.
-	hasConfigurationCapability = !!(
-		capabilities.workspace && !!capabilities.workspace.configuration
-	);
-	hasWorkspaceFolderCapability = !!(
-		capabilities.workspace && !!capabilities.workspace.workspaceFolders
-	);
-	hasDiagnosticRelatedInformationCapability = !!(
-		capabilities.textDocument &&
-		capabilities.textDocument.publishDiagnostics &&
-		capabilities.textDocument.publishDiagnostics.relatedInformation
-	);
-	const result: InitializeResult = {
-		capabilities: {
-			textDocumentSync: TextDocumentSyncKind.Incremental,//incremental增加的
-			// Tell the client that this server supports code completion.
-			completionProvider: {
-				resolveProvider: true
-			},
-			hoverProvider: true,
-			codeActionProvider: true,
-			executeCommandProvider: {
-				commands: [
-					"Rename Symbol"
-				]
-			}
-		}
-	};
-	if (hasWorkspaceFolderCapability) {
-		result.capabilities.workspace = {
-			workspaceFolders: {
-				supported: true
-			}
-		};
-	}
-	return result;
-});
-
+connection.onInitialize(initialize);
 connection.onInitialized(() => {
 	if (hasConfigurationCapability) {
 		// Register for all configuration changes.
 		connection.client.register(DidChangeConfigurationNotification.type, undefined);
+		connection.client.register(vsn.CodeActionRequest.type, undefined);
 	}
 	if (hasWorkspaceFolderCapability) {
 		connection.workspace.onDidChangeWorkspaceFolders(_event => {
@@ -103,8 +64,6 @@ connection.onInitialized(() => {
 });
 
 
-
-// The example settings
 interface ExampleSettings {
 	maxNumberOfProblems: number;
 }
@@ -131,20 +90,8 @@ connection.onDidChangeConfiguration(change => {
 	documents.all().forEach(validateTextDocument);
 });
 
-function getDocumentSettings(resource: string): Thenable<ExampleSettings> {
-	if (!hasConfigurationCapability) {
-		return Promise.resolve(globalSettings);//如果不支持configuration，就返回全局设置
-	}
-	let result = documentSettings.get(resource);
-	if (!result) {
-		result = connection.workspace.getConfiguration({
-			scopeUri: resource,
-			section: 'languageServerExample'
-		});
-		documentSettings.set(resource, result);
-	}
-	return result;
-}
+
+
 
 // Only keep settings for open documents
 documents.onDidClose(e => { //documents is a documents manager, not the document itself
@@ -159,11 +106,11 @@ documents.onDidChangeContent(change => {
 
 });
 
-function dublicateFunc(document:TextDocument, range:Range): CodeAction {
+function dublicateAction(document:TextDocument, range:Range, ctx:vsn.CodeActionContext): CodeAction {
 	const text = document.getText(range);
 	const change: WorkspaceChange = new WorkspaceChange();
 	const a = change.getTextEditChange(document);
-	a.insert({line: range.end.line + 2, character: 0}, "\n\n" + text + "\n\n", ChangeAnnotation.create('generate by refactor', false));
+	a.insert({line: range.end.line + 2, character: 0}, `\n\n${text}\n\n`, ChangeAnnotation.create('generate by refactor', false));
 	const codeAction: CodeAction = {
 		title: 'stellar hunter code action',
 		kind: CodeActionKind.QuickFix,
@@ -173,6 +120,57 @@ function dublicateFunc(document:TextDocument, range:Range): CodeAction {
 	return codeAction;
 }  
 
+function showRangeAciton(document:TextDocument, range:Range, ctx: vsn.CodeActionContext): CodeAction {
+
+	const codeAction:CodeAction = {
+		title: "range of this code action",
+		kind: CodeActionKind.Refactor,
+		data: document.uri,
+	};
+	const text = document.getText();
+	const change = insertBehind(document, text, range);
+	codeAction.edit = change.edit;
+	return codeAction;
+}
+
+function insertBehind(document:TextDocument, text:string, range:Range):vsn.WorkspaceChange {
+	const change = new WorkspaceChange();
+	const a = change.getTextEditChange(document);
+	a.insert({line: range.end.line + 1, character: 0}, `\n\n${text}\n\n`, ChangeAnnotation.create('insert behind', false));
+	return change;
+}
+
+function replaceSelected(document: TextDocument, text:string, range:Range):vsn.WorkspaceChange {
+	const change = new WorkspaceChange();
+	const a = change.getTextEditChange(document);
+	a.replace(range, `\n\n${text}\n\n`, ChangeAnnotation.create('replace selected', false));
+	return change;
+}
+
+
+function extractRename(document:TextDocument, range:Range, ctx:vsn.CodeActionContext, text:string): CodeAction {
+	const result = extractDOM(text, document, undefined);
+	const position:Position = {
+		line: range.end.line + 3,
+		character: 11
+	};
+	const command:Command = {
+		title: 'Rename Symbol',
+		command: 'editor.action.rename',
+		arguments: [position]
+	};
+	const codeAction = {
+		title: 'extract this DOM and rename',
+		kind: CodeActionKind.RefactorExtract,
+		data: document.uri,
+		command: command
+	};
+	return codeAction;
+}
+
+connection.onExecuteCommand((params) => {
+	
+});
 
 connection.onCodeAction((params) => {
 	const document = documents.get(params.textDocument.uri);
@@ -181,19 +179,12 @@ connection.onCodeAction((params) => {
 	const ctx = params.context;
 	const range = params.range;
 	const text = document.getText(range);
-	const dublicateCode:CodeAction = dublicateFunc(document, range);
-	codeActions.push(dublicateCode);
+
+	//const dublicateCode:CodeAction = dublicateAction(document, range);
+	codeActions.push(dublicateAction(document, range, ctx));
+	codeActions.push(showRangeAciton(document, range, ctx));
+	codeActions.push(extractRename(document, range, ctx, text));
 	
-	const codeAction:CodeAction = {
-		title: "range of this code action",
-		kind: CodeActionKind.Refactor,
-		data: document.uri,
-	};
-	const change = new WorkspaceChange();
-	const a = change.getTextEditChange(document);
-	a.insert({line: range.end.line + 1, character: 0}, JSON.stringify(range) + " text: "+ text, ChangeAnnotation.create('generate by refactor', false));
-	codeAction.edit = change.edit;
-	codeActions.push(codeAction);
 	return codeActions;
 });
 
@@ -227,7 +218,7 @@ async function checkElement(textDocument: TextDocument) {
 			data: textDocument.uri
 		};
 		const diagnostic: Diagnostic = {
-			severity: DiagnosticSeverity.Warning,
+			severity: DiagnosticSeverity.Hint,
 			range: {
 				start: textDocument.positionAt(m.index),
 				end: textDocument.positionAt(m.index + m[0].length)
