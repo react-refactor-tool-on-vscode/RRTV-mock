@@ -47,7 +47,13 @@ const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
 let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
 let hasDiagnosticRelatedInformationCapability = false;
-
+const DidTriggerFormCommand = {
+	type: { get method() { return 'rrtv-client/formTrigger'; } },
+};
+// 自定义输入框命令
+const DidTriggerInputCommand = {
+	type: { get method() { return 'rrtv-client/inputTrigger'; } },
+};
 connection.onInitialize(initialize);
 connection.onInitialized(() => {
 	if (hasConfigurationCapability) {
@@ -60,6 +66,7 @@ connection.onInitialized(() => {
 			connection.console.log('Workspace folder change event received.');
 		});
 	}
+	//connection.client.register(DidTriggerFormCommand.type, {trigger: 'form'});
 	
 });
 
@@ -77,18 +84,6 @@ let globalSettings: ExampleSettings = defaultSettings;
 // Cache the settings of all open documents
 const documentSettings: Map<string, Thenable<ExampleSettings>> = new Map();
 
-connection.onDidChangeConfiguration(change => {
-	if (hasConfigurationCapability) {
-		// Reset all cached document settings
-		documentSettings.clear();
-	} else {
-		globalSettings = <ExampleSettings>(
-			(change.settings.languageServerExample || defaultSettings)
-		);
-	}
-	// Revalidate all open text documents
-	documents.all().forEach(validateTextDocument);
-});
 
 
 
@@ -119,6 +114,10 @@ function dublicateAction(document:TextDocument, range:Range, ctx:vsn.CodeActionC
 	codeAction.edit = change.edit;
 	return codeAction;
 }  
+connection.onCodeActionResolve((codeAction) => {
+
+	return codeAction;
+});
 
 function showRangeAciton(document:TextDocument, range:Range, ctx: vsn.CodeActionContext): CodeAction {
 
@@ -146,7 +145,7 @@ function replaceSelected(document: TextDocument, text:string, range:Range):vsn.W
 	a.replace(range, `\n\n${text}\n\n`, ChangeAnnotation.create('replace selected', false));
 	return change;
 }
-
+connection.sendNotification
 
 function extractRename(document:TextDocument, range:Range, ctx:vsn.CodeActionContext, text:string): CodeAction {
 	const result = extractDOM(text, document, undefined);
@@ -159,18 +158,53 @@ function extractRename(document:TextDocument, range:Range, ctx:vsn.CodeActionCon
 		command: 'editor.action.rename',
 		arguments: [position]
 	};
+	const command2:Command = {
+		title: 'rrtv-client.triggerForm',
+		command: 'rrtv-client.triggerForm',
+	};
 	const codeAction = {
 		title: 'extract this DOM and rename',
 		kind: CodeActionKind.RefactorExtract,
 		data: document.uri,
-		command: command
+		command: command2
 	};
 	return codeAction;
 }
 
+
 connection.onExecuteCommand((params) => {
-	
+	const command = params.command;
+	if(command === DidTriggerFormCommand.type.method) {
+		showForm();
+	} else if (command === DidTriggerInputCommand.type.method) {
+		showInputBox();
+	} else if (command === 'extract') {
+		showForm();
+	}
 });
+
+// connection.onNotification((params) => {
+// 	const command = params;
+// 	if(command === DidTriggerFormCommand.type.method) {
+// 		showForm();
+// 	} else if (command === DidTriggerInputCommand.type.method) {
+// 		showInputBox();
+// 	}
+// });
+
+async function showForm() {
+	const response = await connection.window.showInformationMessage('choose a parent', {title: 'a'}, {title: 'b'});
+	if(response === undefined) {return undefined;};
+	if(response.title === 'a') {
+		connection.window.showInformationMessage("good choice");
+	} else if (response.title === 'b') {
+		connection.window.showInformationMessage("bad choice");
+	}
+}
+
+function showInputBox() {
+	
+}
 
 connection.onCodeAction((params) => {
 	const document = documents.get(params.textDocument.uri);
@@ -233,54 +267,6 @@ async function checkElement(textDocument: TextDocument) {
 
 }
 
-async function validateTextDocument(textDocument: TextDocument): Promise<void> {
-	// In this simple example we get the settings for every validate run.
-	//const settings = await getDocumentSettings(textDocument.uri);
-	
-	const settings: ExampleSettings = { maxNumberOfProblems: 1000 };
-	// The validator creates diagnostics for all uppercase words length 2 and more
-	const text = textDocument.getText();
-	const pattern = /\b[A-Z]{2,}\b/g;
-	let m: RegExpExecArray | null;
-
-	let problems = 0;
-	const diagnostics: Diagnostic[] = [];
-	while ((m = pattern.exec(text)) && problems < settings.maxNumberOfProblems) {
-		problems++;
-		const diagnostic: Diagnostic = {
-			severity: DiagnosticSeverity.Warning,
-			range: {
-				start: textDocument.positionAt(m.index),
-				end: textDocument.positionAt(m.index + m[0].length)
-			},
-			message: `${m[0]} is all uppercase.`,
-			source: 'ex'
-		};
-		if (hasDiagnosticRelatedInformationCapability) {
-			diagnostic.relatedInformation = [
-				{
-					location: {
-						uri: textDocument.uri,
-						range: Object.assign({}, diagnostic.range)
-					},
-					message: 'Spelling matters'
-				},
-				{
-					location: {
-						uri: textDocument.uri,
-						range: Object.assign({}, diagnostic.range)
-					},
-					message: 'Particularly for names'
-					
-				}
-			];
-		}
-		diagnostics.push(diagnostic);
-	}
-
-	// Send the computed diagnostics to VSCode.
-	connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
-}
 
 
 connection.onDidChangeWatchedFiles(_change => {

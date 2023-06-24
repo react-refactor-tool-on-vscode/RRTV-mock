@@ -35,7 +35,8 @@ export function initialize(params:vsn.InitializeParams): vsn.InitializeResult {
             codeActionProvider: true,
             executeCommandProvider: {
                 commands: [
-                    "Rename Symbol"
+                    "Rename Symbol",
+                    "trigger form"
                 ]
             }
         }
