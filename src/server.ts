@@ -43,11 +43,7 @@ connection.onExecuteCommand((params) => {
 		const text = documents.get(params.arguments[0].document);
 		if(text === undefined) {return ;}
 		if (command === 'extract-server') {
-			const edits = extractCommand(params);
-			connection.window.showInformationMessage(JSON.stringify(edits));
-			connection.workspace.applyEdit({
-				documentChanges: edits
-			});
+			extractCommand(params);			
 		}
 	}
 	

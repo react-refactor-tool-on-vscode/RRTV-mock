@@ -11,18 +11,19 @@ type ExtractParamsBack = {
 	range: vscode.Range;
 	document: TextDocument;
 };
-export function extractCommand(params: node.ExecuteCommandParams):node.TextDocumentEdit[] {
+export function extractCommand(params: node.ExecuteCommandParams) {
 	if(params.arguments === undefined) {
-		return [];
+		return;
 	}
 	const document:DocumentUri = params.arguments[0].document;
 	const range = params.arguments[0].range as vscode.Range;
 	const text = documents.get(document);
 	if (text === undefined || range === undefined) { 
-		return []; 
+		return; 
 	}
-	const code = text.getText(range);
-	
+	let code = text.getText(range);
+	const regex = /(?<=function\s+)\b([^\s(]+)/;
+	code = code.replace(regex, params.arguments[0].name);
 
 	const documentChanges:node.TextDocumentEdit[] = [
 		node.TextDocumentEdit.create({
@@ -32,6 +33,7 @@ export function extractCommand(params: node.ExecuteCommandParams):node.TextDocum
 			[node.TextEdit.insert(range.end, code)]
 		)
 	];
-	return documentChanges;
-
+	connection.workspace.applyEdit({
+		documentChanges: documentChanges
+	});
 }
