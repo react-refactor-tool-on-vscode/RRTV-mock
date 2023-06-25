@@ -1,21 +1,7 @@
 import * as node from 'vscode-languageserver/node';
 import { extractDOM } from './extract';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-
-
-export function dublicateAction(document: TextDocument, range: node.Range, ctx: node.CodeActionContext): node.CodeAction {
-	const text = document.getText(range);
-	const change: node.WorkspaceChange = new node.WorkspaceChange();
-	const a = change.getTextEditChange(document);
-	a.insert({ line: range.end.line + 2, character: 0 }, `\n\n${text}\n\n`, node.ChangeAnnotation.create('generate by refactor', false));
-	const codeAction: node.CodeAction = {
-		title: 'stellar hunter code action',
-		kind: node.CodeActionKind.QuickFix,
-		data: document.uri
-	};
-	codeAction.edit = change.edit;
-	return codeAction;
-}
+import { Command, Range } from 'vscode';
 
 
 export function showRangeAciton(document: TextDocument, range: node.Range, ctx: node.CodeActionContext): node.CodeAction {
@@ -47,17 +33,7 @@ function replaceSelected(document: TextDocument, text: string, range: node.Range
 }
 
 
-export function extractRename(document: TextDocument, range: node.Range, ctx: node.CodeActionContext, text: string): node.CodeAction {
-	const result = extractDOM(text, document, undefined);
-	const position: node.Position = {
-		line: range.end.line + 3,
-		character: 11
-	};
-	// const command: node.Command = {
-	// 	title: 'Rename Symbol',
-	// 	command: 'editor.action.rename',
-	// 	arguments: [position]
-	// };
+export function extractRename(document: TextDocument, range: node.Range, ctx: node.CodeActionContext, text: string): node.CodeAction | undefined {
 	const command: node.Command = {
 		title: 'extract',
 		command: 'extract',
@@ -74,4 +50,56 @@ export function extractRename(document: TextDocument, range: node.Range, ctx: no
 		command: command
 	};
 	return codeAction;
+}
+
+export function renameSymbol(document:TextDocument, range:node.Range, text:string): node.CodeAction | undefined{
+	const command: node.Command = {
+		title: 'editor.action.rename',
+		command: 'editor.action.rename',
+		arguments: [
+			range,
+		]
+	};
+	const codeAction = {
+		title: 'rename this symbol: ' + text,
+		kind: node.CodeActionKind.Refactor,
+		data: document.uri,
+		command: command
+	};
+	return codeAction;
+}
+
+export function invocation2Composition(document:TextDocument, range:node.Range): node.CodeAction | undefined {
+	const result = isInvocation(document, range);
+	if(!result) {return;}
+	const command:Command = {
+		title:'invocation2Composition',
+		command: 'invocation2Composition',
+		arguments: [{
+			range: result,
+			document: document.uri
+		}]
+	};
+	const codeAction:node.CodeAction = {
+		title: '组件调用转为组件组合',
+		kind: node.CodeActionKind.RefactorRewrite,
+		data: document.uri,
+		command: command
+	};
+	return codeAction;
+}
+
+function isInvocation(document:TextDocument, range:node.Range): node.Range | undefined {
+	let lineRange:node.Range = range;
+	if(range.start.line !== range.end.line) {
+		return;
+	}
+	lineRange.start.character = 0;
+	lineRange.end.character = 1000;
+	const line:string = document.getText(lineRange);
+	const regex = new RegExp(`(?<=.{${range.start.character}})\\b\\w+\\s*\\(`);
+	if(regex.test(line)) {
+		return lineRange;
+	}
+	return;
 }
