@@ -6,6 +6,12 @@ import {
 } from 'vscode-languageserver-textdocument';
 import { documents, connection, CommandParams } from './server';
 import { replaceInvocation } from './service';
+import * as service from './language';
+
+export type TabPosition = {
+    position: vscode.Position,
+    tab: number
+};
 
 export function extractCommand(params: CommandParams) {
 	const document:DocumentUri = params.arguments[0].document;
@@ -142,3 +148,14 @@ export function stateUpgradeExec(params:CommandParams) {
 
 }
 
+export function fulfillAttribute(params: CommandParams) {
+	const pick = params.arguments[0].pick;
+	const document = params.arguments[0].document;
+	const range = params.arguments[0].range;
+    const tabpos:TabPosition[] = service.getAttrPositions(pick, range);
+	connection.sendRequest(node.ExecuteCommandRequest.method, {
+		command: "run snippet",
+		arguments:[]
+	});
+	connection.window.showInformationMessage("snippet is sent");
+}

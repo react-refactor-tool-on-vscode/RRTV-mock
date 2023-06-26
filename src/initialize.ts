@@ -18,6 +18,10 @@ const registeredCommands = [
     "jsx-extract-hooks",
     "stateUpgrade",
     "stateUpgrade-server",
+    "modify-attribute",
+    "provide attribute exec",
+    "provide attribute",
+    "run snippet"
 ];
 
 

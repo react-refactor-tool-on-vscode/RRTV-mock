@@ -174,3 +174,33 @@ function isState(document:TextDocument, range:node.Range): node.Range | undefine
 	}
 	return;
 }
+
+export function attrOptProvider(document:TextDocument, range:node.Range): node.CodeAction | undefined {
+	if(!ifAttrable(document, range)) {return;}
+	const items = [
+		"same key same value",
+		"same key different value",
+		"different key same value",
+		"different key different value"
+	];
+	const command:Command = {
+		title: "provide attribute",
+		command: 'provide attribute',
+		arguments: [{
+			document: document,
+			range: range,
+			items: items
+		}]
+	};
+	const codeAction:node.CodeAction = {
+		title: "批量添加键值对",
+		kind: node.CodeActionKind.Refactor,
+		data: document.uri,
+		command: command
+	};
+	return codeAction;
+}
+
+function ifAttrable(document:TextDocument, range:node.Range) {
+	return true;
+}
