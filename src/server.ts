@@ -51,13 +51,18 @@ export type CommandParams = {
 
 connection.onExecuteCommand((params) => {
 	const command = params.command;
+	//connection.window.showInformationMessage(JSON.stringify(params));
 	if(params.arguments) {
 		const withArgs:CommandParams = {
 			command: params.command,
 			arguments: params.arguments
 		};
+		// connection.window.showInformationMessage(JSON.stringify())
 		const text = documents.get(params.arguments[0].document);
-		if(text === undefined) {return ;}
+		if(text === undefined) {
+			connection.window.showInformationMessage('document is undefined');
+			return ;
+		}
 		if (command === 'extract-server') {
 			extractCommand(withArgs);			
 		} else if(command === 'invocation2Composition') {
@@ -68,6 +73,7 @@ connection.onExecuteCommand((params) => {
 			//connection.window.showInformationMessage("get the stateUpgrade-server")
 			stateUpgradeExec(withArgs);
 		} else if (command === 'provide attribute exec') {
+			//connection.window.showInformationMessage(JSON.stringify(withArgs));
 			fulfillAttribute(withArgs);
 		}
 	}

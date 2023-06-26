@@ -187,7 +187,7 @@ export function attrOptProvider(document:TextDocument, range:node.Range): node.C
 		title: "provide attribute",
 		command: 'provide attribute',
 		arguments: [{
-			document: document,
+			document: document.uri,
 			range: range,
 			items: items
 		}]
