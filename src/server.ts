@@ -9,9 +9,11 @@ import {
 import {
 	extractRename,
 	invocation2Composition,
-	renameSymbol
+	parameterFlattening,
+	renameSymbol,
+	stateUpgrade
 } from './codeAction';
-import { extractCommand, invocation2CompositionExec } from './command';
+import { extractCommand, invocation2CompositionExec, parameterFlatteningExec, stateUpgradeExec } from './command';
 import { checkElement } from './diagnositc';
 
 export const connection = node.createConnection(node.ProposedFeatures.all);
@@ -59,6 +61,11 @@ connection.onExecuteCommand((params) => {
 			extractCommand(withArgs);			
 		} else if(command === 'invocation2Composition') {
 			invocation2CompositionExec(withArgs);
+		} else if(command === 'parameterFlattening') {
+			parameterFlatteningExec(withArgs);
+		} else if(command === 'stateUpgrade-server') {
+			//connection.window.showInformationMessage("get the stateUpgrade-server")
+			stateUpgradeExec(withArgs);
 		}
 	}
 });
@@ -84,7 +91,8 @@ connection.onCodeAction((params) => {
 	codeActions = push(codeActions, renameSymbol(document, range, text));
 	codeActions = push(codeActions, extractRename(document, range, ctx, text));
 	codeActions = push(codeActions,invocation2Composition(document, range));
-
+	codeActions = push(codeActions,parameterFlattening(document,range));
+	codeActions = push(codeActions,stateUpgrade(document,range));
 	return codeActions;
 });
 
