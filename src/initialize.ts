@@ -12,11 +12,12 @@ const registeredCommands = [
     "extract-server",
     "extract",
     "invocation2Composition",
-    "parameter flattening",
+    "parameterFlattening",
     "jsx-extract-return",
     "jsx-extract-reducer",
     "jsx-extract-hooks",
-    "state-upgrade"
+    "stateUpgrade",
+    "stateUpgrade-server",
 ];
 
 

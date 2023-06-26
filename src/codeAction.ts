@@ -103,3 +103,74 @@ function isInvocation(document:TextDocument, range:node.Range): node.Range | und
 	}
 	return;
 }
+
+export function parameterFlattening(document:TextDocument,range:node.Range) : node.CodeAction | undefined {
+	const result = isParameter(document, range);
+	if(!result) {return;}
+	const command:Command = {
+		title:'parameterFlattening',
+		command: 'parameterFlattening',
+		arguments: [{
+			range: result,
+			document: document.uri
+		}]
+	};
+	const codeAction:node.CodeAction = {
+		title: '参数扁平化',
+		kind: node.CodeActionKind.RefactorRewrite,
+		data: document.uri,
+		command: command
+	};
+	return codeAction;
+}
+
+function isParameter(document:TextDocument, range:node.Range): node.Range | undefined {
+	let lineRange:node.Range = range;
+	if(range.start.line !== range.end.line) {
+		return;
+	}
+	lineRange.start.character = 0;
+	lineRange.end.character = 1000;
+	const line:string = document.getText(lineRange);
+	const regex = /\(([^)]+)\)/;
+	if(regex.test(line)) {
+		return lineRange;
+	}
+	return;
+}
+
+export function stateUpgrade(document:TextDocument,range:node.Range) : node.CodeAction | undefined {
+	const result = isState(document,range);
+	if(!result) return
+	const command : node.Command ={
+		title : 'stateUpgrade',
+		command : 'stateUpgrade',
+		arguments : [{
+			items:['button','square','whu'],
+			range:result,
+			document:document.uri
+		}]
+	}
+	const codeAction:node.CodeAction = {
+		title : '状态提升',
+		kind : node.CodeActionKind.RefactorExtract,
+		data: document.uri,
+		command: command
+	}
+	return codeAction;
+}
+
+function isState(document:TextDocument, range:node.Range): node.Range | undefined {
+	let lineRange:node.Range = range;
+	if(range.start.line !== range.end.line) {
+		return;
+	}
+	lineRange.start.character = 0;
+	lineRange.end.character = 1000;
+	const line:string = document.getText(lineRange);
+	const regex = /\[(.*?)\]/g;
+	if(regex.test(line)) {
+		return lineRange;
+	}
+	return;
+}
