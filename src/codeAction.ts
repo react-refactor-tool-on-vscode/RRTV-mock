@@ -70,7 +70,7 @@ export function renameSymbol(document:TextDocument, range:node.Range, text:strin
 }
 
 export function invocation2Composition(document:TextDocument, range:node.Range): node.CodeAction | undefined {
-	const result = isInvocation(document, range);
+	const result = isInvocation(document, range);    
 	if(!result) {return;}
 	const command:Command = {
 		title:'invocation2Composition',
@@ -89,6 +89,7 @@ export function invocation2Composition(document:TextDocument, range:node.Range):
 	return codeAction;
 }
 
+
 function isInvocation(document:TextDocument, range:node.Range): node.Range | undefined {
 	let lineRange:node.Range = range;
 	if(range.start.line !== range.end.line) {
@@ -103,3 +104,67 @@ function isInvocation(document:TextDocument, range:node.Range): node.Range | und
 	}
 	return;
 }
+
+// 提取到 return 外部
+export function extractJSXtoreturn(document: TextDocument, range: node.Range, ctx: node.CodeActionContext, text: string): node.CodeAction|undefined {
+	const command: node.Command = {
+		title: 'Extract to return statement',
+		command: 'jsx-extract-return',
+		arguments: [{
+			items: ['a', 'bb', 'ccc'],
+			range: range,
+			document:document.uri
+		}]
+	};
+	const codeAction = {
+		title: 'Extract to return statement',
+		kind: node.CodeActionKind.RefactorExtract,
+		data: document.uri,
+		command: command
+	};
+	return codeAction;
+}
+
+
+// 提取到 reducer
+export function extractJSXtoreducer(document: TextDocument, range: node.Range, ctx: node.CodeActionContext, text: string): node.CodeAction | undefined {
+	const command: node.Command = {
+		title: 'Extract to reducer',
+		command: 'jsx-extract-reducer',
+		arguments: [{
+			range: range,
+			document:document.uri
+		}]
+	};
+	const codeAction = {
+		title: 'Extract to reducer',
+		kind: node.CodeActionKind.RefactorExtract,
+		data: document.uri,
+		command: command
+	};
+	return codeAction;
+}
+
+
+// 提取到 hooks
+export function extractJSXtohooks(document: TextDocument, range: node.Range, ctx: node.CodeActionContext, text: string): node.CodeAction | undefined {
+	const command: node.Command = {
+		title: 'Extract to hooks',
+		command: 'jsx-extract-hooks',
+		arguments: [{
+			range: range,
+			document:document.uri
+		}]
+	};
+	const codeAction = {
+		title: 'Extract to hooks',
+		kind: node.CodeActionKind.RefactorExtract,
+		data: document.uri,
+		command: command
+	};
+	return codeAction;
+}
+
+
+
+

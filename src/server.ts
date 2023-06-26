@@ -9,9 +9,12 @@ import {
 import {
 	extractRename,
 	invocation2Composition,
-	renameSymbol
+	renameSymbol, 
+	extractJSXtoreturn,
+	extractJSXtoreducer,
+	extractJSXtohooks
 } from './codeAction';
-import { extractCommand, invocation2CompositionExec } from './command';
+import { extractCommand, invocation2CompositionExec, extractJSXtoreturnExe,extractJSXtoreducerExe,extractJSXtohooksExe} from './command';
 import { checkElement } from './diagnositc';
 
 export const connection = node.createConnection(node.ProposedFeatures.all);
@@ -59,6 +62,14 @@ connection.onExecuteCommand((params) => {
 			extractCommand(withArgs);			
 		} else if(command === 'invocation2Composition') {
 			invocation2CompositionExec(withArgs);
+		}else if (command==='jsx-extract-return-exec'){
+			console.log("hello world");
+			extractJSXtoreturnExe(withArgs);
+		}else if (command==='jsx-extract-reducer-exec'){
+			extractJSXtoreducerExe(withArgs);
+		}else if (command==='jsx-extract-hooks-exec'){
+			console.log("HELLO WORLD");
+			extractJSXtohooksExe(withArgs);
 		}
 	}
 });
@@ -83,8 +94,10 @@ connection.onCodeAction((params) => {
 	//connection.window.showInformationMessage(JSON.stringify(params.range));
 	codeActions = push(codeActions, renameSymbol(document, range, text));
 	codeActions = push(codeActions, extractRename(document, range, ctx, text));
-	codeActions = push(codeActions,invocation2Composition(document, range));
-
+	codeActions = push(codeActions, invocation2Composition(document, range));
+	codeActions = push(codeActions, extractJSXtoreturn(document,range,ctx,text));
+	codeActions = push(codeActions, extractJSXtoreducer(document,range,ctx,text));
+	codeActions = push(codeActions, extractJSXtohooks(document,range,ctx,text));
 	return codeActions;
 });
 
