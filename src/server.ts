@@ -7,13 +7,14 @@ import {
 	TextDocument
 } from 'vscode-languageserver-textdocument';
 import {
+	attrOptProvider,
 	extractRename,
 	invocation2Composition,
 	parameterFlattening,
 	renameSymbol,
 	stateUpgrade
 } from './codeAction';
-import { extractCommand, invocation2CompositionExec, parameterFlatteningExec, stateUpgradeExec } from './command';
+import { extractCommand, fulfillAttribute, invocation2CompositionExec, parameterFlatteningExec, stateUpgradeExec } from './command';
 import { checkElement } from './diagnositc';
 
 export const connection = node.createConnection(node.ProposedFeatures.all);
@@ -66,6 +67,8 @@ connection.onExecuteCommand((params) => {
 		} else if(command === 'stateUpgrade-server') {
 			//connection.window.showInformationMessage("get the stateUpgrade-server")
 			stateUpgradeExec(withArgs);
+		} else if (command === 'provide attribute exec') {
+			fulfillAttribute(withArgs);
 		}
 	}
 });
@@ -92,7 +95,9 @@ connection.onCodeAction((params) => {
 	codeActions = push(codeActions, extractRename(document, range, ctx, text));
 	codeActions = push(codeActions,invocation2Composition(document, range));
 	codeActions = push(codeActions,parameterFlattening(document,range));
-	codeActions = push(codeActions,stateUpgrade(document,range));
+	codeActions = push(codeActions, stateUpgrade(document,range));
+	codeActions = push(codeActions, attrOptProvider(document, range));
+
 	return codeActions;
 });
 
