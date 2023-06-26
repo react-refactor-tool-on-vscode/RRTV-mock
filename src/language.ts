@@ -7,15 +7,8 @@ export function replaceInvocation(range:node.Range, text:string):string {
     return ret;
 }
 
-export function getAttrPositions(pick:string, range:node.Range):TabPosition[] {
-    const tabpos:TabPosition[] = [];
-    for(let i = 1; i < 30; i += 5) {
-        const tabPosition:TabPosition = {
-            position: range.start as vscode.Position,
-            tab: 1
-        };
-        if(i > 3) {tabPosition.tab = 2;}
-        tabpos.push(tabPosition);
-    }
-    return tabpos;
+export function getSnippet(pick:string, text:string):string {
+    text = "<div $1=$2>hello I'm a snippet</> \n <div $1=$2>do you want to add attribute on me?</> ";
+    return text;
 }
+

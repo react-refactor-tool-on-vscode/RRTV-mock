@@ -8,8 +8,10 @@ import { documents, connection, CommandParams } from './server';
 import { replaceInvocation } from './service';
 import * as service from './language';
 
+
+
 export type TabPosition = {
-    position: vscode.Position,
+    position: node.Position,
     tab: number
 };
 
@@ -96,7 +98,7 @@ export function stateUpgradeExec(params:CommandParams) {
 		return; 
 	}
 	if(pick === 'button'){
-		connection.window.showInformationMessage("get button")
+		connection.window.showInformationMessage("get button");
 		let code = text.getText(range);
 		const regex = /(?<=function\s+)\b([^\s(]+)/;
 		code = code.replace(regex, params.arguments[0].name);
@@ -107,14 +109,14 @@ export function stateUpgradeExec(params:CommandParams) {
 			},
 				[node.TextEdit.insert(range.end,code)]
 			)
-		]
+		];
 		connection.workspace.applyEdit({
 			documentChanges: documentChanges
-		})
+		});
 	}
 	else if(pick === 'square'){
-		connection.window.showInformationMessage("get square")
-		let code = 'That is a square!'
+		connection.window.showInformationMessage("get square");
+		let code = 'That is a square!';
 		const documentChanges = [
 			node.TextDocumentEdit.create({
 				uri:document,
@@ -122,14 +124,14 @@ export function stateUpgradeExec(params:CommandParams) {
 			},
 				[node.TextEdit.replace(range,code)]
 			)
-		]
+		];
 		connection.workspace.applyEdit({
 			documentChanges: documentChanges
-		})
+		});
 	}
 	else if(pick === 'whu'){
-		connection.window.showInformationMessage("get whu")
-		let code = 'whu!'
+		connection.window.showInformationMessage("get whu");
+		let code = 'whu!';
 		const documentChanges = [
 			node.TextDocumentEdit.create({
 				uri:document,
@@ -137,25 +139,45 @@ export function stateUpgradeExec(params:CommandParams) {
 			},
 				[node.TextEdit.insert(range.start,code.repeat(3))]
 			)
-		]
+		];
 		connection.workspace.applyEdit({
 			documentChanges: documentChanges
-		})
+		});
 	}
 	else {
-		connection.window.showInformationMessage("get nothing")
+		connection.window.showInformationMessage("get nothing");
 	}
 
 }
 
-export function fulfillAttribute(params: CommandParams) {
+export async function fulfillAttribute(params: CommandParams) {
 	const pick = params.arguments[0].pick;
 	const document = params.arguments[0].document;
-	const range = params.arguments[0].range;
-    const tabpos:TabPosition[] = service.getAttrPositions(pick, range);
-	connection.sendRequest(node.ExecuteCommandRequest.method, {
-		command: "run snippet",
-		arguments:[]
+	const range:node.Range = params.arguments[0].range;
+	const text = documents.get(document);
+	if(!text) {
+		connection.window.showInformationMessage("no text");
+		return;
+	}
+    const snippet = service.getSnippet(pick, text.getText(range));
+	//connection.window.showInformationMessage(JSON.stringify(tabpos));
+	//connection.client.register(node.ExecuteCommandRequest.type);
+	
+	const documentChanges = [
+		node.TextDocumentEdit.create({
+			uri:document,
+			version:text.version
+		},
+			[node.TextEdit.del(range)]
+		)
+	];
+	await connection.workspace.applyEdit({
+		documentChanges: documentChanges
 	});
-	connection.window.showInformationMessage("snippet is sent");
+	await connection.sendRequest(node.ExecuteCommandRequest.method, {
+		command: "run snippet",
+		arguments:[range.start, snippet]
+	});
+	
+	//connection.window.showInformationMessage("snippet is sent");
 }
